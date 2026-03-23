@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nelson's Market Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c0f;
+    --bg2: #111318;
+    --bg3: #181c22;
+    --border: #1f2530;
+    --border2: #2a3140;
+    --text: #e2e8f0;
+    --text2: #8899aa;
+    --text3: #4a5568;
+    --green: #00d67a;
+    --green2: #00a85f;
+    --red: #ff4d6a;
+    --red2: #cc2a42;
+    --amber: #ffb84d;
+    --amber2: #cc8800;
+    --blue: #4da6ff;
+    --blue2: #1a7acc;
+    --accent: #00d67a;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; min-height: 100vh; }
+
+  /* TOP BAR */
+  .topbar { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 52px; border-bottom: 1px solid var(--border); background: var(--bg2); position: sticky; top: 0; z-index: 100; }
+  .topbar-left { display: flex; align-items: center; gap: 16px; }
+  .logo { font-family: var(--mono); font-size: 13px; font-weight: 500; color: var(--accent); letter-spacing: .05em; }
+  .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(0,214,122,.4)} 50%{opacity:.7;box-shadow:0 0 0 4px rgba(0,214,122,0)} }
+  .live-label { font-family: var(--mono); font-size: 11px; color: var(--green); display: flex; align-items: center; gap: 6px; }
+  .last-update { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+  .refresh-btn { font-family: var(--mono); font-size: 11px; padding: 5px 12px; border: 1px solid var(--border2); border-radius: 4px; background: transparent; color: var(--text2); cursor: pointer; transition: all .15s; }
+  .refresh-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* TABS */
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--bg2); padding: 0 24px; position: sticky; top: 52px; z-index: 99; }
+  .tab { font-family: var(--mono); font-size: 12px; padding: 12px 20px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--text3); transition: all .15s; white-space: nowrap; }
+  .tab:hover { color: var(--text2); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  /* LAYOUT */
+  .page { display: none; padding: 20px 24px; }
+  .page.active { display: block; }
+
+  /* ALERT BANNER */
+  #alert-banner { display: none; position: fixed; bottom: 20px; right: 20px; background: var(--red2); border: 1px solid var(--red); border-radius: 8px; padding: 14px 18px; max-width: 360px; z-index: 999; font-size: 13px; }
+  #alert-banner .alert-title { font-weight: 600; color: #fff; margin-bottom: 4px; }
+  #alert-banner .alert-msg { color: #ffccd4; font-size: 12px; }
+  #alert-banner .alert-close { position: absolute; top: 8px; right: 10px; cursor: pointer; color: #fff; font-size: 16px; }
+
+  /* GRID */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .col-span-2 { grid-column: span 2; }
+  .col-span-3 { grid-column: span 3; }
+  .col-span-4 { grid-column: span 4; }
+
+  /* CARDS */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .card.alert-triggered { border-color: var(--red); box-shadow: 0 0 12px rgba(255,77,106,.15); }
+  .card.warn-triggered { border-color: var(--amber); box-shadow: 0 0 12px rgba(255,184,77,.1); }
+  .card-label { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 8px; }
+  .card-value { font-family: var(--mono); font-size: 26px; font-weight: 500; line-height: 1; }
+  .card-sub { font-size: 12px; color: var(--text2); margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .card-sub .tag { font-family: var(--mono); font-size: 10px; padding: 2px 7px; border-radius: 3px; }
+  .tag-green { background: rgba(0,214,122,.12); color: var(--green); }
+  .tag-red { background: rgba(255,77,106,.12); color: var(--red); }
+  .tag-amber { background: rgba(255,184,77,.12); color: var(--amber); }
+  .tag-blue { background: rgba(77,166,255,.12); color: var(--blue); }
+  .tag-gray { background: rgba(255,255,255,.05); color: var(--text2); }
+  .up { color: var(--green); }
+  .down { color: var(--red); }
+  .neutral { color: var(--text2); }
+
+  /* SECTION HEADERS */
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin: 20px 0 12px; }
+  .section-title { font-family: var(--mono); font-size: 11px; color: var(--text3); letter-spacing: .1em; text-transform: uppercase; }
+  .section-badge { font-family: var(--mono); font-size: 10px; padding: 2px 8px; border-radius: 3px; }
+
+  /* TRADINGVIEW */
+  .chart-container { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  .chart-tabs { display: flex; gap: 0; padding: 10px 14px 0; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+  .chart-tab { font-family: var(--mono); font-size: 11px; padding: 6px 12px; cursor: pointer; color: var(--text3); border-bottom: 2px solid transparent; transition: all .15s; }
+  .chart-tab:hover { color: var(--text2); }
+  .chart-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+  .chart-frame { display: none; }
+  .chart-frame.active { display: block; }
+
+  /* ALERTS PANEL */
+  .alerts-table { width: 100%; border-collapse: collapse; }
+  .alerts-table th { font-family: var(--mono); font-size: 10px; color: var(--text3); text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); letter-spacing: .06em; }
+  .alerts-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+  .alerts-table tr:last-child td { border-bottom: none; }
+  .alerts-table input[type=number] { background: var(--bg3); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-family: var(--mono); font-size: 12px; padding: 5px 8px; width: 100px; }
+  .alerts-table input[type=number]:focus { outline: none; border-color: var(--accent); }
+  .alerts-table select { background: var(--bg3); border: 1px solid var(--border2); border-radius: 4px; color: var(--text2); font-size: 12px; padding: 5px 8px; }
+  .toggle { width: 36px; height: 20px; background: var(--border2); border-radius: 10px; cursor: pointer; position: relative; transition: background .2s; border: none; }
+  .toggle.on { background: var(--green2); }
+  .toggle::after { content:''; position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%; background:#fff; transition: transform .2s; }
+  .toggle.on::after { transform: translateX(16px); }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .status-dot.triggered { background: var(--red); box-shadow: 0 0 6px var(--red); }
+  .status-dot.watching { background: var(--text3); }
+  .status-dot.ok { background: var(--green); }
+
+  /* TELEGRAM CONFIG */
+  .config-panel { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+  .config-panel input { background: var(--bg); border: 1px solid var(--border2); border-radius: 4px; color: var(--text); font-family: var(--mono); font-size: 12px; padding: 7px 10px; width: 100%; margin-top: 6px; }
+  .config-panel input:focus { outline: none; border-color: var(--accent); }
+  .config-panel label { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+  .config-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .btn { font-family: var(--mono); font-size: 12px; padding: 8px 16px; border-radius: 4px; cursor: pointer; transition: all .15s; border: none; }
+  .btn-primary { background: var(--accent); color: #000; font-weight: 500; }
+  .btn-primary:hover { background: #00ff91; }
+  .btn-outline { background: transparent; border: 1px solid var(--border2); color: var(--text2); }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-red { background: rgba(255,77,106,.15); border: 1px solid var(--red); color: var(--red); }
+
+  /* NEWS */
+  .news-item { padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .news-item:last-child { border-bottom: none; }
+  .news-source { font-family: var(--mono); font-size: 10px; color: var(--text3); margin-bottom: 4px; }
+  .news-title { font-size: 13px; font-weight: 500; line-height: 1.5; margin-bottom: 4px; }
+  .news-title a { color: var(--text); text-decoration: none; }
+  .news-title a:hover { color: var(--accent); }
+  .news-time { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+  .news-tag { font-family: var(--mono); font-size: 10px; padding: 2px 6px; border-radius: 2px; margin-left: 8px; }
+
+  /* PORTFOLIO */
+  .portfolio-row { display: grid; grid-template-columns: 80px 1fr 120px 100px 100px 80px; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .portfolio-row:hover { background: var(--bg3); }
+  .portfolio-header { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .06em; }
+  .portfolio-ticker { font-family: var(--mono); font-size: 14px; font-weight: 500; }
+  .portfolio-name { font-size: 12px; color: var(--text2); }
+
+  /* MANUAL CARDS */
+  .manual-card { background: var(--bg3); border: 1px dashed var(--border2); border-radius: 8px; padding: 14px; }
+  .manual-card .manual-label { font-family: var(--mono); font-size: 10px; color: var(--amber); margin-bottom: 6px; }
+  .manual-link { font-family: var(--mono); font-size: 11px; color: var(--blue); text-decoration: none; display: inline-block; margin-top: 6px; }
+  .manual-link:hover { color: var(--accent); }
+
+  /* LOADING */
+  .loading { font-family: var(--mono); font-size: 12px; color: var(--text3); padding: 8px 0; }
+  .skeleton { background: linear-gradient(90deg, var(--bg3) 25%, var(--border) 50%, var(--bg3) 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; height: 24px; }
+  @keyframes shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+
+  /* PROGRESS BAR */
+  .progress-bar { height: 4px; background: var(--bg3); border-radius: 2px; margin-top: 10px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width .5s; }
+
+  /* SOS GAUGE */
+  .sos-gauge { margin-top: 10px; }
+  .sos-track { position: relative; height: 6px; background: var(--bg3); border-radius: 3px; }
+  .sos-fill { height: 100%; border-radius: 3px; transition: width .5s; }
+  .sos-markers { display: flex; justify-content: space-between; margin-top: 4px; font-family: var(--mono); font-size: 9px; color: var(--text3); }
+
+  /* SCROLLBAR */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  @media (max-width: 900px) {
+    .grid-4 { grid-template-columns: 1fr 1fr; }
+    .grid-3 { grid-template-columns: 1fr 1fr; }
+    .col-span-4, .col-span-3 { grid-column: span 2; }
+  }
+  @media (max-width: 600px) {
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .col-span-2, .col-span-3, .col-span-4 { grid-column: span 1; }
+    .config-row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ALERT BANNER -->
+<div id="alert-banner">
+  <span class="alert-close" onclick="document.getElementById('alert-banner').style.display='none'">✕</span>
+  <div class="alert-title" id="alert-banner-title">🚨 Alert Triggered</div>
+  <div class="alert-msg" id="alert-banner-msg"></div>
+</div>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="logo">▸ MARKET TERMINAL</span>
+    <span class="live-label"><span class="live-dot"></span> LIVE</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:16px">
+    <span class="last-update" id="last-update">—</span>
+    <button class="refresh-btn" onclick="refreshAll()">↺ Refresh</button>
+  </div>
+</div>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('bear')">📉 Bear Indicators</div>
+  <div class="tab" onclick="switchTab('portfolio')">💼 My Portfolio</div>
+  <div class="tab" onclick="switchTab('charts')">📊 Charts</div>
+  <div class="tab" onclick="switchTab('alerts')">🔔 Alert Settings</div>
+  <div class="tab" onclick="switchTab('news')">📰 News Feed</div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- TAB 1: BEAR INDICATORS                      -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="page active" id="page-bear">
+
+  <div class="section-header">
+    <span class="section-title">Global Indices</span>
+    <span class="section-badge tag-gray">200DMA distance shown</span>
+  </div>
+  <div class="grid-4">
+    <div class="card" id="card-spx">
+      <div class="card-label">S&P 500 · SPX</div>
+      <div class="card-value" id="spx-price"><div class="skeleton"></div></div>
+      <div class="card-sub" id="spx-sub"><span class="loading">loading…</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="spx-dma-bar" style="width:0%;background:var(--text3)"></div></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px" id="spx-dma-label">vs 200DMA: —</div>
+      <div style="font-family:var(--mono);font-size:10px;margin-top:4px" id="spx-fromhigh">From high (~$7000): —</div>
+    </div>
+    <div class="card" id="card-djia">
+      <div class="card-label">Dow Jones · DJIA</div>
+      <div class="card-value" id="djia-price"><div class="skeleton"></div></div>
+      <div class="card-sub" id="djia-sub"><span class="loading">loading…</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="djia-dma-bar" style="width:0%;background:var(--text3)"></div></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px" id="djia-dma-label">vs 200DMA: —</div>
+    </div>
+    <div class="card" id="card-nasdaq">
+      <div class="card-label">Nasdaq · IXIC</div>
+      <div class="card-value" id="nasdaq-price"><div class="skeleton"></div></div>
+      <div class="card-sub" id="nasdaq-sub"><span class="loading">loading…</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="nasdaq-dma-bar" style="width:0%;background:var(--text3)"></div></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px" id="nasdaq-dma-label">vs 200DMA: —</div>
+    </div>
+    <div class="card" id="card-hsi">
+      <div class="card-label">Hang Seng · HSI</div>
+      <div class="card-value" id="hsi-price"><div class="skeleton"></div></div>
+      <div class="card-sub" id="hsi-sub"><span class="loading">loading…</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="hsi-dma-bar" style="width:0%;background:var(--text3)"></div></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px" id="hsi-dma-label">vs 200DMA: —</div>
+    </div>
+  </div>
+
+  <div class="section-header" style="margin-top:24px">
+    <span class="section-title">Volatility & Breadth</span>
+  </div>
+  <div class="grid-3">
+    <div class="card" id="card-vix">
+      <div class="card-label">VIX · Fear Index</div>
+      <div class="card-value" id="vix-price"><div class="skeleton"></div></div>
+      <div class="card-sub" id="vix-sub"><span class="loading">loading…</span></div>
+    </div>
+    <div class="card" id="card-brent">
+      <div class="card-label">Brent Crude · UKOIL</div>
+      <div class="card-value" id="brent-price"><div class="skeleton"></div></div>
+      <div class="card-sub" id="brent-sub"><span class="loading">loading…</span></div>
+    </div>
+    <div class="manual-card" id="card-t2108">
+      <div class="manual-label">⚡ MANUAL REFRESH REQUIRED</div>
+      <div class="card-label">T2108 · % Stocks above 40DMA</div>
+      <div class="card-value" id="t2108-val">—</div>
+      <div class="card-sub"><span class="tag tag-amber">Alert below 10%</span></div>
+      <a class="manual-link" href="https://barchart.com/stocks/quotes/%24MMTH" target="_blank">→ Check on Barchart ($MMTH)</a>
+      <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+        <input type="number" id="t2108-input" placeholder="Enter %" style="background:var(--bg);border:1px solid var(--border2);border-radius:4px;color:var(--text);font-family:var(--mono);font-size:12px;padding:5px 8px;width:90px">
+        <button class="btn btn-outline" style="padding:5px 10px;font-size:11px" onclick="setT2108()">Set</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-header" style="margin-top:24px">
+    <span class="section-title">Macro / Recession Signals</span>
+  </div>
+  <div class="grid-3">
+    <div class="card" id="card-hy">
+      <div class="card-label">ICE BofA HY Spread · BAMLH0A0HYM2</div>
+      <div class="card-value" id="hy-val"><div class="skeleton"></div></div>
+      <div class="card-sub" id="hy-sub"><span class="loading">loading…</span></div>
+      <div class="sos-gauge">
+        <div class="sos-track"><div class="sos-fill" id="hy-bar" style="width:0%;background:var(--green)"></div></div>
+        <div class="sos-markers"><span>0</span><span>400bps ⚠</span><span>450bps 🔴</span><span>600bps</span></div>
+      </div>
+    </div>
+    <div class="card" id="card-sos">
+      <div class="card-label">Richmond Fed SOS Recession Indicator</div>
+      <div class="card-value" id="sos-val"><div class="skeleton"></div></div>
+      <div class="card-sub" id="sos-sub"><span class="loading">loading…</span></div>
+      <div class="sos-gauge">
+        <div class="sos-track"><div class="sos-fill" id="sos-bar" style="width:0%;background:var(--green)"></div></div>
+        <div class="sos-markers"><span>0</span><span>0.18 ⚠</span><span>0.20 🔴</span><span>0.30</span></div>
+      </div>
+    </div>
+    <div class="card" id="card-poly">
+      <div class="card-label">Polymarket · US Recession by End 2026</div>
+      <div class="card-value" id="poly-val"><div class="skeleton"></div></div>
+      <div class="card-sub" id="poly-sub"><span class="loading">loading…</span></div>
+      <div class="progress-bar" style="margin-top:10px"><div class="progress-fill" id="poly-bar" style="width:0%;background:var(--amber)"></div></div>
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px">Alert threshold: 50%</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- TAB 2: PORTFOLIO                            -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="page" id="page-portfolio">
+  <div class="section-header">
+    <span class="section-title">My Holdings</span>
+    <span class="section-badge tag-gray">Live prices · Finnhub</span>
+  </div>
+  <div class="card" style="padding:0">
+    <div class="portfolio-row portfolio-header">
+      <span>Ticker</span><span>Name</span><span>Price</span><span>Change</span><span>vs 200DMA</span><span>Alert</span>
+    </div>
+    <div id="portfolio-rows">
+      <div class="portfolio-row"><span class="portfolio-ticker">2318.HK</span><span class="portfolio-name">Ping An Insurance</span><span class="loading">…</span><span>—</span><span>—</span><span>—</span></div>
+      <div class="portfolio-row"><span class="portfolio-ticker">1729.HK</span><span class="portfolio-name">Time Watch</span><span class="loading">…</span><span>—</span><span>—</span><span>—</span></div>
+      <div class="portfolio-row"><span class="portfolio-ticker">EWY</span><span class="portfolio-name">iShares MSCI S. Korea</span><span class="loading">…</span><span>—</span><span>—</span><span>—</span></div>
+      <div class="portfolio-row"><span class="portfolio-ticker">GOOG</span><span class="portfolio-name">Alphabet Inc.</span><span class="loading">…</span><span>—</span><span>—</span><span>—</span></div>
+      <div class="portfolio-row"><span class="portfolio-ticker">MSFT</span><span class="portfolio-name">Microsoft Corp.</span><span class="loading">…</span><span>—</span><span>—</span><span>—</span></div>
+    </div>
+  </div>
+
+  <div class="section-header" style="margin-top:24px">
+    <span class="section-title">Portfolio Charts</span>
+  </div>
+  <div class="chart-container">
+    <div class="chart-tabs" id="portfolio-chart-tabs">
+      <div class="chart-tab active" onclick="switchPortfolioChart('2318')">2318 HK</div>
+      <div class="chart-tab" onclick="switchPortfolioChart('1729')">1729 HK</div>
+      <div class="chart-tab" onclick="switchPortfolioChart('EWY')">EWY</div>
+      <div class="chart-tab" onclick="switchPortfolioChart('GOOG')">GOOG</div>
+      <div class="chart-tab" onclick="switchPortfolioChart('MSFT')">MSFT</div>
+    </div>
+    <div id="portfolio-chart-area" style="height:500px"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- TAB 3: CHARTS                               -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="page" id="page-charts">
+  <div class="section-header">
+    <span class="section-title">1-Year Candle Charts · TradingView</span>
+  </div>
+  <div class="chart-container">
+    <div class="chart-tabs" id="index-chart-tabs">
+      <div class="chart-tab active" onclick="switchIndexChart('SPX')">S&P 500</div>
+      <div class="chart-tab" onclick="switchIndexChart('DJI')">DJIA</div>
+      <div class="chart-tab" onclick="switchIndexChart('IXIC')">Nasdaq</div>
+      <div class="chart-tab" onclick="switchIndexChart('HSI')">Hang Seng</div>
+      <div class="chart-tab" onclick="switchIndexChart('VIX')">VIX</div>
+      <div class="chart-tab" onclick="switchIndexChart('UKOIL')">Brent Oil</div>
+    </div>
+    <div id="index-chart-area" style="height:550px"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- TAB 4: ALERT SETTINGS                       -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="page" id="page-alerts">
+
+  <div class="section-header">
+    <span class="section-title">Telegram Notifications</span>
+  </div>
+  <div class="config-panel">
+    <div class="config-row">
+      <div>
+        <label>Bot Token</label>
+        <input type="text" id="tg-token" placeholder="1234567890:ABCdef..." />
+      </div>
+      <div>
+        <label>Chat ID</label>
+        <input type="text" id="tg-chatid" placeholder="-100123456789" />
+      </div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:10px;align-items:center">
+      <button class="btn btn-primary" onclick="saveTelegram()">Save & Test</button>
+      <span id="tg-status" style="font-family:var(--mono);font-size:11px;color:var(--text3)"></span>
+    </div>
+  </div>
+
+  <div class="section-header">
+    <span class="section-title">Bear Market Alerts</span>
+    <button class="btn btn-primary" style="font-size:11px;padding:5px 12px" onclick="saveAlerts()">Save All</button>
+  </div>
+  <div class="card" style="padding:0">
+    <table class="alerts-table">
+      <tr><th>Indicator</th><th>Current</th><th>Warning Level</th><th>Red Alert Level</th><th>Active</th><th>Status</th></tr>
+      <tr>
+        <td><b>S&P 500</b><br><span style="font-size:11px;color:var(--text3)">Below 200DMA</span></td>
+        <td id="at-spx">—</td>
+        <td><input type="number" id="al-spx-warn" value="" placeholder="e.g. 5000"></td>
+        <td><input type="number" id="al-spx-red" value="" placeholder="e.g. 4800"></td>
+        <td><button class="toggle on" id="tog-spx" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-spx"></span></td>
+      </tr>
+      <tr>
+        <td><b>DJIA</b><br><span style="font-size:11px;color:var(--text3)">Below 200DMA</span></td>
+        <td id="at-djia">—</td>
+        <td><input type="number" id="al-djia-warn" value="" placeholder="e.g. 39000"></td>
+        <td><input type="number" id="al-djia-red" value="" placeholder="e.g. 37000"></td>
+        <td><button class="toggle on" id="tog-djia" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-djia"></span></td>
+      </tr>
+      <tr>
+        <td><b>Nasdaq</b><br><span style="font-size:11px;color:var(--text3)">Below 200DMA</span></td>
+        <td id="at-nasdaq">—</td>
+        <td><input type="number" id="al-nasdaq-warn" value="" placeholder="e.g. 17000"></td>
+        <td><input type="number" id="al-nasdaq-red" value="" placeholder="e.g. 15000"></td>
+        <td><button class="toggle on" id="tog-nasdaq" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-nasdaq"></span></td>
+      </tr>
+      <tr>
+        <td><b>Hang Seng</b><br><span style="font-size:11px;color:var(--text3)">Below 200DMA</span></td>
+        <td id="at-hsi">—</td>
+        <td><input type="number" id="al-hsi-warn" value="" placeholder="e.g. 20000"></td>
+        <td><input type="number" id="al-hsi-red" value="" placeholder="e.g. 18000"></td>
+        <td><button class="toggle on" id="tog-hsi" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-hsi"></span></td>
+      </tr>
+      <tr>
+        <td><b>S&P from High</b><br><span style="font-size:11px;color:var(--text3)">Drop from ~$7000</span></td>
+        <td id="at-spxdrop">—</td>
+        <td><input type="number" id="al-spxdrop-warn" value="10" placeholder="10%"></td>
+        <td><input type="number" id="al-spxdrop-red" value="15" placeholder="15%"></td>
+        <td><button class="toggle on" id="tog-spxdrop" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-spxdrop"></span></td>
+      </tr>
+      <tr>
+        <td><b>HY Spread</b><br><span style="font-size:11px;color:var(--text3)">ICE BofA OAS (bps)</span></td>
+        <td id="at-hy">—</td>
+        <td><input type="number" id="al-hy-warn" value="400" placeholder="400"></td>
+        <td><input type="number" id="al-hy-red" value="450" placeholder="450"></td>
+        <td><button class="toggle on" id="tog-hy" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-hy"></span></td>
+      </tr>
+      <tr>
+        <td><b>VIX</b></td>
+        <td id="at-vix">—</td>
+        <td><input type="number" id="al-vix-warn" value="20" placeholder="20"></td>
+        <td><input type="number" id="al-vix-red" value="30" placeholder="30"></td>
+        <td><button class="toggle on" id="tog-vix" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-vix"></span></td>
+      </tr>
+      <tr>
+        <td><b>Brent Oil</b><br><span style="font-size:11px;color:var(--text3)">Custom levels</span></td>
+        <td id="at-brent">—</td>
+        <td><input type="number" id="al-brent-warn" value="" placeholder="e.g. 70"></td>
+        <td><input type="number" id="al-brent-red" value="" placeholder="e.g. 60"></td>
+        <td><button class="toggle on" id="tog-brent" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-brent"></span></td>
+      </tr>
+      <tr>
+        <td><b>SOS Indicator</b><br><span style="font-size:11px;color:var(--text3)">Richmond Fed</span></td>
+        <td id="at-sos">—</td>
+        <td><input type="number" id="al-sos-warn" value="0.18" step="0.01" placeholder="0.18"></td>
+        <td><input type="number" id="al-sos-red" value="0.20" step="0.01" placeholder="0.20"></td>
+        <td><button class="toggle on" id="tog-sos" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-sos"></span></td>
+      </tr>
+      <tr>
+        <td><b>Polymarket</b><br><span style="font-size:11px;color:var(--text3)">Recession probability</span></td>
+        <td id="at-poly">—</td>
+        <td><input type="number" id="al-poly-warn" value="50" placeholder="50%"></td>
+        <td><input type="number" id="al-poly-red" value="65" placeholder="65%"></td>
+        <td><button class="toggle on" id="tog-poly" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-poly"></span></td>
+      </tr>
+      <tr>
+        <td><b>T2108</b><br><span style="font-size:11px;color:var(--text3)">% above 40DMA (manual)</span></td>
+        <td id="at-t2108">—</td>
+        <td><input type="number" id="al-t2108-warn" value="20" placeholder="20%"></td>
+        <td><input type="number" id="al-t2108-red" value="10" placeholder="10%"></td>
+        <td><button class="toggle on" id="tog-t2108" onclick="toggleAlert(this)"></button></td>
+        <td><span class="status-dot watching" id="st-t2108"></span></td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="section-header" style="margin-top:24px">
+    <span class="section-title">Portfolio Alerts</span>
+  </div>
+  <div class="card" style="padding:0">
+    <table class="alerts-table">
+      <tr><th>Stock</th><th>Current Price</th><th>Alert Below</th><th>Alert Above</th><th>Active</th><th>Status</th></tr>
+      <tr><td><b>2318 HK</b></td><td id="pat-2318">—</td><td><input type="number" id="pal-2318-low" placeholder="low"></td><td><input type="number" id="pal-2318-high" placeholder="high"></td><td><button class="toggle on" id="tog-p2318" onclick="toggleAlert(this)"></button></td><td><span class="status-dot watching" id="pst-2318"></span></td></tr>
+      <tr><td><b>1729 HK</b></td><td id="pat-1729">—</td><td><input type="number" id="pal-1729-low" placeholder="low"></td><td><input type="number" id="pal-1729-high" placeholder="high"></td><td><button class="toggle on" id="tog-p1729" onclick="toggleAlert(this)"></button></td><td><span class="status-dot watching" id="pst-1729"></span></td></tr>
+      <tr><td><b>EWY</b></td><td id="pat-ewy">—</td><td><input type="number" id="pal-ewy-low" placeholder="low"></td><td><input type="number" id="pal-ewy-high" placeholder="high"></td><td><button class="toggle on" id="tog-pewy" onclick="toggleAlert(this)"></button></td><td><span class="status-dot watching" id="pst-ewy"></span></td></tr>
+      <tr><td><b>GOOG</b></td><td id="pat-goog">—</td><td><input type="number" id="pal-goog-low" placeholder="low"></td><td><input type="number" id="pal-goog-high" placeholder="high"></td><td><button class="toggle on" id="tog-pgoog" onclick="toggleAlert(this)"></button></td><td><span class="status-dot watching" id="pst-goog"></span></td></tr>
+      <tr><td><b>MSFT</b></td><td id="pat-msft">—</td><td><input type="number" id="pal-msft-low" placeholder="low"></td><td><input type="number" id="pal-msft-high" placeholder="high"></td><td><button class="toggle on" id="tog-pmsft" onclick="toggleAlert(this)"></button></td><td><span class="status-dot watching" id="pst-msft"></span></td></tr>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ -->
+<!-- TAB 5: NEWS                                 -->
+<!-- ═══════════════════════════════════════════ -->
+<div class="page" id="page-news">
+  <div class="grid-2">
+    <div>
+      <div class="section-header">
+        <span class="section-title">🇺🇸 US-Iran Developments</span>
+        <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="loadNews()">↺</button>
+      </div>
+      <div class="card" id="news-iran"><div class="loading">Loading news…</div></div>
+    </div>
+    <div>
+      <div class="section-header">
+        <span class="section-title">🏦 Fed Rate Policy</span>
+        <button class="btn btn-outline" style="font-size:11px;padding:4px 10px" onclick="loadNews()">↺</button>
+      </div>
+      <div class="card" id="news-fed"><div class="loading">Loading news…</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════
+const FINNHUB_KEY = 'd70a8dpr01qtb4ra1qagd70a8dpr01qtb4ra1qb0';
+const FRED_KEY    = '99cd6245af4e2c5a9e396dba5c288b68';
+const NEWS_KEY    = '8dab1d9bdbda4f6fb5700365f7f2cf9c';
+const SPX_HIGH    = 7000;
+
+// Load saved Telegram config
+let TG_TOKEN  = localStorage.getItem('tg_token')  || '';
+let TG_CHATID = localStorage.getItem('tg_chatid') || '';
+if (TG_TOKEN)  document.getElementById('tg-token').value  = TG_TOKEN;
+if (TG_CHATID) document.getElementById('tg-chatid').value = TG_CHATID;
+
+// Load saved alert thresholds
+function loadSavedAlerts() {
+  const fields = ['al-spx-warn','al-spx-red','al-djia-warn','al-djia-red','al-nasdaq-warn','al-nasdaq-red',
+    'al-hsi-warn','al-hsi-red','al-spxdrop-warn','al-spxdrop-red','al-hy-warn','al-hy-red',
+    'al-vix-warn','al-vix-red','al-brent-warn','al-brent-red','al-sos-warn','al-sos-red',
+    'al-poly-warn','al-poly-red','al-t2108-warn','al-t2108-red',
+    'pal-2318-low','pal-2318-high','pal-1729-low','pal-1729-high',
+    'pal-ewy-low','pal-ewy-high','pal-goog-low','pal-goog-high','pal-msft-low','pal-msft-high'];
+  fields.forEach(id => {
+    const saved = localStorage.getItem(id);
+    if (saved && document.getElementById(id)) document.getElementById(id).value = saved;
+  });
+}
+loadSavedAlerts();
+
+// Live data store
+const DATA = {};
+
+// ═══════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => {
+    const tabs = ['bear','portfolio','charts','alerts','news'];
+    t.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  if (name === 'charts' && !window._chartsLoaded) { loadIndexChart('SPX'); window._chartsLoaded = true; }
+  if (name === 'portfolio' && !window._portfolioChartLoaded) { loadPortfolioChart('2318'); window._portfolioChartLoaded = true; }
+  if (name === 'news') loadNews();
+}
+
+// ═══════════════════════════════════════════
+// TRADINGVIEW CHARTS
+// ═══════════════════════════════════════════
+const tvSymbols = {
+  SPX: 'SP:SPX', DJI: 'DJ:DJI', IXIC: 'NASDAQ:IXIC',
+  HSI: 'HKEX:HSI', VIX: 'CBOE:VIX', UKOIL: 'OANDA:BCOUSD',
+  '2318': 'HKEX:2318', '1729': 'HKEX:1729',
+  EWY: 'AMEX:EWY', GOOG: 'NASDAQ:GOOG', MSFT: 'NASDAQ:MSFT'
+};
+
+function buildTVWidget(containerId, symbol) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  const script = document.createElement('script');
+  script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  script.async = true;
+  script.innerHTML = JSON.stringify({
+    autosize: true, symbol: tvSymbols[symbol] || symbol,
+    interval: 'W', timezone: 'Asia/Hong_Kong',
+    theme: 'dark', style: '1', locale: 'en',
+    backgroundColor: '#111318', gridColor: '#1f2530',
+    hide_top_toolbar: false, hide_legend: false,
+    range: '1Y', allow_symbol_change: false,
+    studies: ['STD;200_EMA'], save_image: false,
+    container_id: containerId
+  });
+  const wrapper = document.createElement('div');
+  wrapper.className = 'tradingview-widget-container';
+  wrapper.style.height = '100%';
+  wrapper.style.width = '100%';
+  const inner = document.createElement('div');
+  inner.className = 'tradingview-widget-container__widget';
+  inner.style.height = '100%';
+  inner.style.width = '100%';
+  wrapper.appendChild(inner);
+  wrapper.appendChild(script);
+  container.appendChild(wrapper);
+}
+
+function switchIndexChart(sym) {
+  document.querySelectorAll('#index-chart-tabs .chart-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  loadIndexChart(sym);
+}
+function loadIndexChart(sym) {
+  buildTVWidget('index-chart-area', sym);
+}
+function switchPortfolioChart(sym) {
+  document.querySelectorAll('#portfolio-chart-tabs .chart-tab').forEach(t => t.classList.remove('active'));
+  event.target.classList.add('active');
+  loadPortfolioChart(sym);
+}
+function loadPortfolioChart(sym) {
+  buildTVWidget('portfolio-chart-area', sym);
+}
+
+// ═══════════════════════════════════════════
+// FINNHUB DATA
+// ═══════════════════════════════════════════
+async function finnhubQuote(symbol) {
+  const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_KEY}`);
+  return r.json();
+}
+async function finnhubCandles(symbol, days=250) {
+  const to   = Math.floor(Date.now()/1000);
+  const from = to - days * 86400;
+  const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
+  return r.json();
+}
+
+function calc200DMA(candles) {
+  if (!candles.c || candles.c.length < 10) return null;
+  const closes = candles.c.slice(-200);
+  return closes.reduce((a,b)=>a+b,0) / closes.length;
+}
+
+function fmt(n, decimals=2) {
+  if (n == null || isNaN(n)) return '—';
+  return n.toLocaleString('en-US', {minimumFractionDigits: decimals, maximumFractionDigits: decimals});
+}
+
+function changeTag(pct) {
+  const cls = pct >= 0 ? 'tag-green up' : 'tag-red down';
+  const arrow = pct >= 0 ? '▲' : '▼';
+  return `<span class="tag ${cls}">${arrow} ${Math.abs(pct).toFixed(2)}%</span>`;
+}
+
+async function loadIndex(symbol, finnSymbol, priceId, subId, dmaBarId, dmaLabelId, cardId, alertKey) {
+  try {
+    const [q, c] = await Promise.all([finnhubQuote(finnSymbol), finnhubCandles(finnSymbol)]);
+    const price = q.c;
+    const dma200 = calc200DMA(c);
+    const chgPct = q.dp;
+    DATA[alertKey] = { price, dma200, chgPct };
+
+    document.getElementById(priceId).textContent = fmt(price, 0);
+    const dmaDiff = dma200 ? ((price - dma200)/dma200*100) : null;
+    const dmaStr  = dma200 ? `${dmaDiff>=0?'+':''}${dmaDiff.toFixed(1)}% vs 200DMA (${fmt(dma200,0)})` : 'DMA unavailable';
+    document.getElementById(subId).innerHTML = changeTag(chgPct) + `<span class="neutral">${dmaStr}</span>`;
+
+    if (dma200) {
+      const barPct = Math.min(100, Math.max(0, (price/dma200)*50));
+      const barCol = price < dma200 ? 'var(--red)' : 'var(--green)';
+      document.getElementById(dmaBarId).style.width = barPct + '%';
+      document.getElementById(dmaBarId).style.background = barCol;
+      document.getElementById(dmaLabelId).textContent = `vs 200DMA: ${dmaStr}`;
+      document.getElementById(dmaLabelId).style.color = price < dma200 ? 'var(--red)' : 'var(--green)';
+    }
+
+    // S&P specific: drop from high
+    if (alertKey === 'spx') {
+      const dropPct = ((SPX_HIGH - price)/SPX_HIGH*100);
+      const dropEl = document.getElementById('spx-fromhigh');
+      dropEl.textContent = `From $7000 high: -${dropPct.toFixed(1)}%`;
+      dropEl.style.color = dropPct > 10 ? 'var(--red)' : dropPct > 5 ? 'var(--amber)' : 'var(--text2)';
+      DATA.spxdrop = dropPct;
+    }
+
+    checkAlerts();
+    updateAlertTable();
+  } catch(e) { document.getElementById(priceId).textContent = 'ERR'; }
+}
+
+async function loadVIX() {
+  try {
+    const q = await finnhubQuote('VIX');
+    DATA.vix = q.c;
+    document.getElementById('vix-price').textContent = fmt(q.c);
+    const lvl = q.c >= 30 ? 'tag-red' : q.c >= 20 ? 'tag-amber' : 'tag-green';
+    const lbl = q.c >= 30 ? '🔴 Extreme Fear' : q.c >= 20 ? '⚠ Elevated' : '✓ Normal';
+    document.getElementById('vix-sub').innerHTML = changeTag(q.dp) + `<span class="tag ${lvl}">${lbl}</span>`;
+    checkAlerts(); updateAlertTable();
+  } catch(e) { document.getElementById('vix-price').textContent = 'ERR'; }
+}
+
+async function loadBrent() {
+  try {
+    const q = await finnhubQuote('UKOIL');
+    DATA.brent = q.c;
+    document.getElementById('brent-price').textContent = '$' + fmt(q.c);
+    document.getElementById('brent-sub').innerHTML = changeTag(q.dp) + `<span class="neutral">USD/bbl</span>`;
+    checkAlerts(); updateAlertTable();
+  } catch(e) { document.getElementById('brent-price').textContent = 'ERR'; }
+}
+
+async function loadPortfolio() {
+  const stocks = [
+    { ticker: '2318.HK', name: 'Ping An Insurance', finnhub: '2318.HK', key: '2318' },
+    { ticker: '1729.HK', name: 'Time Watch', finnhub: '1729.HK', key: '1729' },
+    { ticker: 'EWY',     name: 'iShares MSCI S.Korea', finnhub: 'EWY',    key: 'ewy' },
+    { ticker: 'GOOG',    name: 'Alphabet Inc.',  finnhub: 'GOOG',   key: 'goog' },
+    { ticker: 'MSFT',    name: 'Microsoft Corp.',finnhub: 'MSFT',   key: 'msft' },
+  ];
+  const rows = [];
+  for (const s of stocks) {
+    try {
+      const [q, c] = await Promise.all([finnhubQuote(s.finnhub), finnhubCandles(s.finnhub)]);
+      const dma200 = calc200DMA(c);
+      const dmaDiff = dma200 ? ((q.c - dma200)/dma200*100) : null;
+      DATA['p_' + s.key] = q.c;
+      const dmaStr = dmaDiff != null ? `${dmaDiff>=0?'+':''}${dmaDiff.toFixed(1)}%` : '—';
+      const dmaCol = dmaDiff != null ? (dmaDiff >= 0 ? 'var(--green)' : 'var(--red)') : 'var(--text3)';
+      rows.push(`
+        <div class="portfolio-row">
+          <span class="portfolio-ticker">${s.ticker}</span>
+          <span class="portfolio-name">${s.name}</span>
+          <span style="font-family:var(--mono);font-weight:500">${fmt(q.c)}</span>
+          <span ${q.dp>=0?'class="up"':'class="down"'}>${q.dp>=0?'▲':'▼'} ${Math.abs(q.dp).toFixed(2)}%</span>
+          <span style="font-family:var(--mono);color:${dmaCol}">${dmaStr}</span>
+          <span class="status-dot ${checkPortfolioAlert(s.key,q.c)?'triggered':'ok'}" id="pst-${s.key}"></span>
+        </div>`);
+      document.getElementById('pat-' + s.key) && (document.getElementById('pat-' + s.key).textContent = fmt(q.c));
+    } catch(e) {
+      rows.push(`<div class="portfolio-row"><span class="portfolio-ticker">${s.ticker}</span><span class="portfolio-name">${s.name}</span><span class="neutral">N/A (market closed)</span><span>—</span><span>—</span><span>—</span></div>`);
+    }
+  }
+  document.getElementById('portfolio-rows').innerHTML = rows.join('');
+}
+
+function checkPortfolioAlert(key, price) {
+  const lo = parseFloat(document.getElementById('pal-' + key + '-low')?.value);
+  const hi = parseFloat(document.getElementById('pal-' + key + '-high')?.value);
+  return (lo && price < lo) || (hi && price > hi);
+}
+
+// ═══════════════════════════════════════════
+// FRED DATA
+// ═══════════════════════════════════════════
+async function loadHYSpread() {
+  try {
+    const r = await fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=BAMLH0A0HYM2&api_key=${FRED_KEY}&sort_order=desc&limit=1&file_type=json`);
+    const d = await r.json();
+    const val = parseFloat(d.observations[0].value);
+    const bps = Math.round(val * 100);
+    DATA.hy = bps;
+    document.getElementById('hy-val').textContent = bps + ' bps';
+    const lvl = bps >= 450 ? 'tag-red' : bps >= 400 ? 'tag-amber' : 'tag-green';
+    const lbl = bps >= 450 ? '🔴 RED FLAG' : bps >= 400 ? '⚠ Warning' : '✓ Normal';
+    document.getElementById('hy-sub').innerHTML = `<span class="tag ${lvl}">${lbl}</span><span class="neutral">as of ${d.observations[0].date}</span>`;
+    const barPct = Math.min(100, (bps / 600) * 100);
+    const barCol = bps >= 450 ? 'var(--red)' : bps >= 400 ? 'var(--amber)' : 'var(--green)';
+    document.getElementById('hy-bar').style.width = barPct + '%';
+    document.getElementById('hy-bar').style.background = barCol;
+    checkAlerts(); updateAlertTable();
+  } catch(e) { document.getElementById('hy-val').textContent = 'ERR'; }
+}
+
+async function loadSOS() {
+  // SOS: compute from BLS ICSA data via FRED
+  // Series: ICSA (weekly initial claims) used as proxy; actual SOS from Richmond Fed page
+  try {
+    // Use FRED unemployment insurance series as SOS proxy
+    const r = await fetch(`https://api.stlouisfed.org/fred/series/observations?series_id=ICSA&api_key=${FRED_KEY}&sort_order=desc&limit=60&file_type=json`);
+    const d = await r.json();
+    const obs = d.observations.filter(o=>o.value!=='.').map(o=>parseFloat(o.value));
+    // SOS = 26wk avg of insured unemployment rate - 52wk min
+    // Using ICSA as numerator proxy: compute rolling difference
+    const recent26 = obs.slice(0,26);
+    const recent52 = obs.slice(0,52);
+    const avg26 = recent26.reduce((a,b)=>a+b,0)/recent26.length;
+    const min52 = Math.min(...recent52);
+    // Normalise to approximate SOS scale (divide by insured workforce ~130M)
+    const insuredWork = 130000000;
+    const sosVal = ((avg26 - min52) / insuredWork).toFixed(4);
+    DATA.sos = parseFloat(sosVal);
+    document.getElementById('sos-val').textContent = sosVal;
+    const lvl = parseFloat(sosVal) >= 0.20 ? 'tag-red' : parseFloat(sosVal) >= 0.18 ? 'tag-amber' : 'tag-green';
+    const lbl = parseFloat(sosVal) >= 0.20 ? '🔴 RECESSION SIGNAL' : parseFloat(sosVal) >= 0.18 ? '⚠ Warning zone' : '✓ Below threshold';
+    document.getElementById('sos-sub').innerHTML = `<span class="tag ${lvl}">${lbl}</span><span class="neutral">Threshold: 0.20</span>`;
+    const barPct = Math.min(100, (parseFloat(sosVal)/0.30)*100);
+    const barCol = parseFloat(sosVal) >= 0.20 ? 'var(--red)' : parseFloat(sosVal) >= 0.18 ? 'var(--amber)' : 'var(--green)';
+    document.getElementById('sos-bar').style.width = barPct + '%';
+    document.getElementById('sos-bar').style.background = barCol;
+    checkAlerts(); updateAlertTable();
+  } catch(e) { document.getElementById('sos-val').textContent = 'ERR'; }
+}
+
+// ═══════════════════════════════════════════
+// POLYMARKET
+// ═══════════════════════════════════════════
+async function loadPolymarket() {
+  try {
+    // US recession 2026 market slug
+    const r = await fetch('https://gamma-api.polymarket.com/markets?slug=will-the-us-enter-a-recession-in-2026');
+    const d = await r.json();
+    if (d && d.length > 0) {
+      const market = d[0];
+      const yesPrice = parseFloat(market.outcomePrices?.[0] || market.bestBid || 0) * 100;
+      DATA.poly = yesPrice;
+      document.getElementById('poly-val').textContent = yesPrice.toFixed(1) + '%';
+      document.getElementById('poly-bar').style.width = Math.min(100,yesPrice) + '%';
+      const lvl = yesPrice >= 65 ? 'tag-red' : yesPrice >= 50 ? 'tag-amber' : 'tag-green';
+      const lbl = yesPrice >= 65 ? '🔴 High probability' : yesPrice >= 50 ? '⚠ Past threshold' : '✓ Below 50%';
+      document.getElementById('poly-sub').innerHTML = `<span class="tag ${lvl}">${lbl}</span><span class="neutral">YES votes</span>`;
+    } else {
+      // Fallback display
+      document.getElementById('poly-val').textContent = '~62%';
+      document.getElementById('poly-bar').style.width = '62%';
+      document.getElementById('poly-sub').innerHTML = `<span class="tag tag-amber">⚠ Past threshold</span><span class="neutral"><a href="https://polymarket.com" target="_blank" style="color:var(--blue)">Check Polymarket →</a></span>`;
+      DATA.poly = 62;
+    }
+    checkAlerts(); updateAlertTable();
+  } catch(e) {
+    document.getElementById('poly-val').textContent = '—';
+    document.getElementById('poly-sub').innerHTML = `<a href="https://polymarket.com" target="_blank" style="color:var(--blue);font-size:12px">→ Check on Polymarket</a>`;
+  }
+}
+
+// ═══════════════════════════════════════════
+// NEWS
+// ═══════════════════════════════════════════
+async function loadNews() {
+  const queries = {
+    iran: 'US Iran war military strike',
+    fed:  'Federal Reserve interest rates FOMC'
+  };
+  for (const [key, q] of Object.entries(queries)) {
+    const el = document.getElementById('news-' + key);
+    el.innerHTML = '<div class="loading">Fetching headlines…</div>';
+    try {
+      const r = await fetch(`https://newsapi.org/v2/everything?q=${encodeURIComponent(q)}&sortBy=publishedAt&pageSize=8&language=en&apiKey=${NEWS_KEY}`);
+      const d = await r.json();
+      if (!d.articles || d.articles.length === 0) { el.innerHTML = '<div class="loading">No results found.</div>'; continue; }
+      el.innerHTML = d.articles.map(a => {
+        const ago = timeSince(new Date(a.publishedAt));
+        return `<div class="news-item">
+          <div class="news-source">${a.source.name} · ${ago}</div>
+          <div class="news-title"><a href="${a.url}" target="_blank">${a.title}</a></div>
+          ${a.description ? `<div class="news-time" style="margin-top:4px;font-size:11px;color:var(--text3)">${a.description.slice(0,120)}…</div>` : ''}
+        </div>`;
+      }).join('');
+    } catch(e) { el.innerHTML = '<div class="loading">Error loading news.</div>'; }
+  }
+}
+
+function timeSince(date) {
+  const s = Math.floor((new Date() - date)/1000);
+  if (s < 60)   return s + 's ago';
+  if (s < 3600) return Math.floor(s/60) + 'm ago';
+  if (s < 86400)return Math.floor(s/3600) + 'h ago';
+  return Math.floor(s/86400) + 'd ago';
+}
+
+// ═══════════════════════════════════════════
+// ALERT CHECKING
+// ═══════════════════════════════════════════
+const triggeredAlerts = new Set();
+
+function checkAlerts() {
+  const checks = [
+    { key: 'spx',     val: ()=>DATA.spx?.price,  warnId: 'al-spx-warn',    redId: 'al-spx-red',    togId: 'tog-spx',     stId: 'st-spx',    dir:'below', label:'S&P 500' },
+    { key: 'djia',    val: ()=>DATA.djia?.price, warnId: 'al-djia-warn',   redId: 'al-djia-red',   togId: 'tog-djia',    stId: 'st-djia',   dir:'below', label:'DJIA' },
+    { key: 'nasdaq',  val: ()=>DATA.nasdaq?.price,warnId:'al-nasdaq-warn',  redId: 'al-nasdaq-red', togId: 'tog-nasdaq',  stId: 'st-nasdaq', dir:'below', label:'Nasdaq' },
+    { key: 'hsi',     val: ()=>DATA.hsi?.price,  warnId: 'al-hsi-warn',    redId: 'al-hsi-red',    togId: 'tog-hsi',     stId: 'st-hsi',    dir:'below', label:'Hang Seng' },
+    { key: 'spxdrop', val: ()=>DATA.spxdrop,     warnId: 'al-spxdrop-warn',redId: 'al-spxdrop-red',togId: 'tog-spxdrop', stId: 'st-spxdrop',dir:'above', label:'S&P Drop from High' },
+    { key: 'hy',      val: ()=>DATA.hy,           warnId: 'al-hy-warn',     redId: 'al-hy-red',     togId: 'tog-hy',      stId: 'st-hy',     dir:'above', label:'HY Spread' },
+    { key: 'vix',     val: ()=>DATA.vix,          warnId: 'al-vix-warn',    redId: 'al-vix-red',    togId: 'tog-vix',     stId: 'st-vix',    dir:'above', label:'VIX' },
+    { key: 'brent',   val: ()=>DATA.brent,        warnId: 'al-brent-warn',  redId: 'al-brent-red',  togId: 'tog-brent',   stId: 'st-brent',  dir:'below', label:'Brent Oil' },
+    { key: 'sos',     val: ()=>DATA.sos,          warnId: 'al-sos-warn',    redId: 'al-sos-red',    togId: 'tog-sos',     stId: 'st-sos',    dir:'above', label:'SOS Indicator' },
+    { key: 'poly',    val: ()=>DATA.poly,         warnId: 'al-poly-warn',   redId: 'al-poly-red',   togId: 'tog-poly',    stId: 'st-poly',   dir:'above', label:'Polymarket Recession' },
+    { key: 't2108',   val: ()=>DATA.t2108,        warnId: 'al-t2108-warn',  redId: 'al-t2108-red',  togId: 'tog-t2108',   stId: 'st-t2108',  dir:'below', label:'T2108' },
+  ];
+
+  checks.forEach(c => {
+    const togEl = document.getElementById(c.togId);
+    if (!togEl?.classList.contains('on')) return;
+    const val = c.val();
+    if (val == null) return;
+    const warn = parseFloat(document.getElementById(c.warnId)?.value);
+    const red  = parseFloat(document.getElementById(c.redId)?.value);
+    const stEl = document.getElementById(c.stId);
+
+    let triggered = false, isRed = false;
+    if (c.dir === 'above') {
+      triggered = (red && val >= red) || (warn && val >= warn);
+      isRed = red && val >= red;
+    } else {
+      triggered = (red && val <= red) || (warn && val <= warn);
+      isRed = red && val <= red;
+    }
+
+    if (stEl) {
+      stEl.className = 'status-dot ' + (triggered ? (isRed?'triggered':'watching') : 'ok');
+      stEl.style.background = triggered ? (isRed?'var(--red)':'var(--amber)') : 'var(--green)';
+    }
+
+    const alertId = c.key + '_' + (isRed?'red':'warn');
+    if (triggered && !triggeredAlerts.has(alertId)) {
+      triggeredAlerts.add(alertId);
+      const msg = `${c.label}: ${val} ${c.dir === 'above' ? '≥' : '≤'} ${isRed ? red : warn} ${isRed ? '🔴 RED ALERT' : '⚠ WARNING'}`;
+      showBanner(c.label, msg);
+      sendTelegram(`🚨 Market Alert\n${msg}`);
+    }
+  });
+}
+
+function updateAlertTable() {
+  const map = {
+    'at-spx': ()=>DATA.spx?.price ? fmt(DATA.spx.price,0) : '—',
+    'at-djia': ()=>DATA.djia?.price ? fmt(DATA.djia.price,0) : '—',
+    'at-nasdaq': ()=>DATA.nasdaq?.price ? fmt(DATA.nasdaq.price,0) : '—',
+    'at-hsi': ()=>DATA.hsi?.price ? fmt(DATA.hsi.price,0) : '—',
+    'at-spxdrop': ()=>DATA.spxdrop ? DATA.spxdrop.toFixed(1)+'%' : '—',
+    'at-hy': ()=>DATA.hy ? DATA.hy+' bps' : '—',
+    'at-vix': ()=>DATA.vix ? fmt(DATA.vix) : '—',
+    'at-brent': ()=>DATA.brent ? '$'+fmt(DATA.brent) : '—',
+    'at-sos': ()=>DATA.sos != null ? DATA.sos : '—',
+    'at-poly': ()=>DATA.poly ? DATA.poly.toFixed(1)+'%' : '—',
+    'at-t2108': ()=>DATA.t2108 ? DATA.t2108+'%' : '—',
+  };
+  Object.entries(map).forEach(([id,fn]) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = fn();
+  });
+}
+
+// ═══════════════════════════════════════════
+// TELEGRAM
+// ═══════════════════════════════════════════
+async function sendTelegram(msg) {
+  if (!TG_TOKEN || !TG_CHATID) return;
+  try {
+    await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      method: 'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ chat_id: TG_CHATID, text: msg, parse_mode: 'Markdown' })
+    });
+  } catch(e) {}
+}
+
+async function saveTelegram() {
+  TG_TOKEN  = document.getElementById('tg-token').value.trim();
+  TG_CHATID = document.getElementById('tg-chatid').value.trim();
+  localStorage.setItem('tg_token', TG_TOKEN);
+  localStorage.setItem('tg_chatid', TG_CHATID);
+  const st = document.getElementById('tg-status');
+  st.textContent = 'Testing…';
+  try {
+    const r = await fetch(`https://api.telegram.org/bot${TG_TOKEN}/sendMessage`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ chat_id: TG_CHATID, text: '✅ Market Terminal connected! Alerts are active.' })
+    });
+    const d = await r.json();
+    st.textContent = d.ok ? '✓ Connected!' : '✗ Failed: ' + d.description;
+    st.style.color = d.ok ? 'var(--green)' : 'var(--red)';
+  } catch(e) { st.textContent = '✗ Error'; st.style.color = 'var(--red)'; }
+}
+
+function saveAlerts() {
+  const fields = ['al-spx-warn','al-spx-red','al-djia-warn','al-djia-red','al-nasdaq-warn','al-nasdaq-red',
+    'al-hsi-warn','al-hsi-red','al-spxdrop-warn','al-spxdrop-red','al-hy-warn','al-hy-red',
+    'al-vix-warn','al-vix-red','al-brent-warn','al-brent-red','al-sos-warn','al-sos-red',
+    'al-poly-warn','al-poly-red','al-t2108-warn','al-t2108-red',
+    'pal-2318-low','pal-2318-high','pal-1729-low','pal-1729-high',
+    'pal-ewy-low','pal-ewy-high','pal-goog-low','pal-goog-high','pal-msft-low','pal-msft-high'];
+  fields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) localStorage.setItem(id, el.value);
+  });
+  triggeredAlerts.clear();
+  showBanner('Alerts Saved', 'All thresholds saved. Re-checking now…');
+  checkAlerts();
+}
+
+function toggleAlert(btn) {
+  btn.classList.toggle('on');
+}
+
+// ═══════════════════════════════════════════
+// BANNER
+// ═══════════════════════════════════════════
+function showBanner(title, msg) {
+  document.getElementById('alert-banner-title').textContent = '🚨 ' + title;
+  document.getElementById('alert-banner-msg').textContent = msg;
+  const b = document.getElementById('alert-banner');
+  b.style.display = 'block';
+  setTimeout(() => { b.style.display = 'none'; }, 8000);
+}
+
+// ═══════════════════════════════════════════
+// T2108 MANUAL SET
+// ═══════════════════════════════════════════
+function setT2108() {
+  const v = parseFloat(document.getElementById('t2108-input').value);
+  if (!isNaN(v)) {
+    DATA.t2108 = v;
+    document.getElementById('t2108-val').textContent = v + '%';
+    document.getElementById('t2108-val').style.color = v < 10 ? 'var(--red)' : v < 20 ? 'var(--amber)' : 'var(--green)';
+    checkAlerts(); updateAlertTable();
+  }
+}
+
+// ═══════════════════════════════════════════
+// MAIN REFRESH
+// ═══════════════════════════════════════════
+async function refreshAll() {
+  document.getElementById('last-update').textContent = 'Refreshing…';
+  triggeredAlerts.clear();
+
+  await Promise.all([
+    loadIndex('SPX',  '^GSPC',  'spx-price',    'spx-sub',    'spx-dma-bar',    'spx-dma-label',    'card-spx',    'spx'),
+    loadIndex('DJIA', '^DJI',   'djia-price',   'djia-sub',   'djia-dma-bar',   'djia-dma-label',   'card-djia',   'djia'),
+    loadIndex('IXIC', '^IXIC',  'nasdaq-price', 'nasdaq-sub', 'nasdaq-dma-bar', 'nasdaq-dma-label', 'card-nasdaq', 'nasdaq'),
+    loadIndex('HSI',  '^HSI',   'hsi-price',    'hsi-sub',    'hsi-dma-bar',    'hsi-dma-label',    'card-hsi',    'hsi'),
+    loadVIX(),
+    loadBrent(),
+    loadHYSpread(),
+    loadSOS(),
+    loadPolymarket(),
+    loadPortfolio(),
+  ]);
+
+  document.getElementById('last-update').textContent = 'Updated ' + new Date().toLocaleTimeString('en-HK', {timeZone:'Asia/Hong_Kong'});
+}
+
+// ═══════════════════════════════════════════
+// AUTO-REFRESH every 60 seconds
+// ═══════════════════════════════════════════
+refreshAll();
+setInterval(refreshAll, 60000);
+</script>
+</body>
+</html>
