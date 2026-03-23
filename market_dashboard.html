@@ -222,7 +222,7 @@
   </div>
   <div class="grid-4">
     <div class="card" id="card-spx">
-      <div class="card-label">S&P 500 · SPX</div>
+      <div class="card-label">S&P 500 · SPY ETF</div>
       <div class="card-value" id="spx-price"><div class="skeleton"></div></div>
       <div class="card-sub" id="spx-sub"><span class="loading">loading…</span></div>
       <div class="progress-bar"><div class="progress-fill" id="spx-dma-bar" style="width:0%;background:var(--text3)"></div></div>
@@ -230,21 +230,21 @@
       <div style="font-family:var(--mono);font-size:10px;margin-top:4px" id="spx-fromhigh">From high (~$7000): —</div>
     </div>
     <div class="card" id="card-djia">
-      <div class="card-label">Dow Jones · DJIA</div>
+      <div class="card-label">Dow Jones · DIA ETF</div>
       <div class="card-value" id="djia-price"><div class="skeleton"></div></div>
       <div class="card-sub" id="djia-sub"><span class="loading">loading…</span></div>
       <div class="progress-bar"><div class="progress-fill" id="djia-dma-bar" style="width:0%;background:var(--text3)"></div></div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px" id="djia-dma-label">vs 200DMA: —</div>
     </div>
     <div class="card" id="card-nasdaq">
-      <div class="card-label">Nasdaq · IXIC</div>
+      <div class="card-label">Nasdaq · QQQ ETF</div>
       <div class="card-value" id="nasdaq-price"><div class="skeleton"></div></div>
       <div class="card-sub" id="nasdaq-sub"><span class="loading">loading…</span></div>
       <div class="progress-bar"><div class="progress-fill" id="nasdaq-dma-bar" style="width:0%;background:var(--text3)"></div></div>
       <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:4px" id="nasdaq-dma-label">vs 200DMA: —</div>
     </div>
     <div class="card" id="card-hsi">
-      <div class="card-label">Hang Seng · HSI</div>
+      <div class="card-label">Hang Seng · 0388.HK proxy</div>
       <div class="card-value" id="hsi-price"><div class="skeleton"></div></div>
       <div class="card-sub" id="hsi-sub"><span class="loading">loading…</span></div>
       <div class="progress-bar"><div class="progress-fill" id="hsi-dma-bar" style="width:0%;background:var(--text3)"></div></div>
@@ -534,7 +534,7 @@
 const FINNHUB_KEY = 'd70a8dpr01qtb4ra1qagd70a8dpr01qtb4ra1qb0';
 const FRED_KEY    = '99cd6245af4e2c5a9e396dba5c288b68';
 const NEWS_KEY    = '8dab1d9bdbda4f6fb5700365f7f2cf9c';
-const SPX_HIGH    = 7000;
+const SPX_HIGH    = 600; // SPY high (~$600 corresponds to SPX ~6000)
 
 // Load saved Telegram config
 let TG_TOKEN  = localStorage.getItem('tg_token')  || '';
@@ -635,14 +635,18 @@ function loadPortfolioChart(sym) {
 // FINNHUB DATA
 // ═══════════════════════════════════════════
 async function finnhubQuote(symbol) {
-  const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${FINNHUB_KEY}`);
-  return r.json();
+  const r = await fetch(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${FINNHUB_KEY}`);
+  const d = await r.json();
+  console.log('Quote', symbol, d);
+  return d;
 }
 async function finnhubCandles(symbol, days=250) {
   const to   = Math.floor(Date.now()/1000);
   const from = to - days * 86400;
-  const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${symbol}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
-  return r.json();
+  const r = await fetch(`https://finnhub.io/api/v1/stock/candle?symbol=${encodeURIComponent(symbol)}&resolution=D&from=${from}&to=${to}&token=${FINNHUB_KEY}`);
+  const d = await r.json();
+  console.log('Candles', symbol, d?.s, d?.c?.length, 'pts');
+  return d;
 }
 
 function calc200DMA(candles) {
@@ -665,9 +669,10 @@ function changeTag(pct) {
 async function loadIndex(symbol, finnSymbol, priceId, subId, dmaBarId, dmaLabelId, cardId, alertKey) {
   try {
     const [q, c] = await Promise.all([finnhubQuote(finnSymbol), finnhubCandles(finnSymbol)]);
-    const price = q.c;
+    const price = q.c || q.pc;
+    if (!price) throw new Error('No price data');
     const dma200 = calc200DMA(c);
-    const chgPct = q.dp;
+    const chgPct = q.dp || 0;
     DATA[alertKey] = { price, dma200, chgPct };
 
     document.getElementById(priceId).textContent = fmt(price, 0);
@@ -688,7 +693,7 @@ async function loadIndex(symbol, finnSymbol, priceId, subId, dmaBarId, dmaLabelI
     if (alertKey === 'spx') {
       const dropPct = ((SPX_HIGH - price)/SPX_HIGH*100);
       const dropEl = document.getElementById('spx-fromhigh');
-      dropEl.textContent = `From $7000 high: -${dropPct.toFixed(1)}%`;
+      dropEl.textContent = `From SPY $600 high: -${dropPct.toFixed(1)}%`;
       dropEl.style.color = dropPct > 10 ? 'var(--red)' : dropPct > 5 ? 'var(--amber)' : 'var(--text2)';
       DATA.spxdrop = dropPct;
     }
@@ -700,30 +705,36 @@ async function loadIndex(symbol, finnSymbol, priceId, subId, dmaBarId, dmaLabelI
 
 async function loadVIX() {
   try {
-    const q = await finnhubQuote('VIX');
-    DATA.vix = q.c;
-    document.getElementById('vix-price').textContent = fmt(q.c);
-    const lvl = q.c >= 30 ? 'tag-red' : q.c >= 20 ? 'tag-amber' : 'tag-green';
-    const lbl = q.c >= 30 ? '🔴 Extreme Fear' : q.c >= 20 ? '⚠ Elevated' : '✓ Normal';
-    document.getElementById('vix-sub').innerHTML = changeTag(q.dp) + `<span class="tag ${lvl}">${lbl}</span>`;
+    // VIXY is a VIX ETF available on Finnhub free tier
+    const q = await finnhubQuote('VIXY');
+    const vixVal = q.c || q.pc || 0;
+    const vixChg = q.dp || 0;
+    DATA.vix = vixVal;
+    document.getElementById('vix-price').textContent = fmt(vixVal);
+    const lvl = vixVal >= 20 ? 'tag-red' : vixVal >= 15 ? 'tag-amber' : 'tag-green';
+    const lbl = vixVal >= 20 ? '🔴 Extreme Fear' : vixVal >= 15 ? '⚠ Elevated' : '✓ Normal';
+    document.getElementById('vix-sub').innerHTML = changeTag(vixChg) + `<span class="tag ${lvl}">${lbl} (VIXY)</span>`;
     checkAlerts(); updateAlertTable();
-  } catch(e) { document.getElementById('vix-price').textContent = 'ERR'; }
+  } catch(e) { document.getElementById('vix-price').textContent = 'ERR'; console.error('VIX',e); }
 }
 
 async function loadBrent() {
   try {
-    const q = await finnhubQuote('UKOIL');
-    DATA.brent = q.c;
-    document.getElementById('brent-price').textContent = '$' + fmt(q.c);
-    document.getElementById('brent-sub').innerHTML = changeTag(q.dp) + `<span class="neutral">USD/bbl</span>`;
+    // BNO = United States Brent Oil Fund ETF, tracks Brent crude closely
+    const q = await finnhubQuote('BNO');
+    const val = q.c || q.pc || 0;
+    const chg = q.dp || 0;
+    DATA.brent = val;
+    document.getElementById('brent-price').textContent = '$' + fmt(val);
+    document.getElementById('brent-sub').innerHTML = changeTag(chg) + `<span class="neutral">BNO ETF (Brent proxy)</span>`;
     checkAlerts(); updateAlertTable();
-  } catch(e) { document.getElementById('brent-price').textContent = 'ERR'; }
+  } catch(e) { document.getElementById('brent-price').textContent = 'ERR'; console.error('Brent',e); }
 }
 
 async function loadPortfolio() {
   const stocks = [
     { ticker: '2318.HK', name: 'Ping An Insurance', finnhub: '2318.HK', key: '2318' },
-    { ticker: '1729.HK', name: 'Time Watch', finnhub: '1729.HK', key: '1729' },
+    { ticker: '1729.HK', name: 'Time Watch Investments', finnhub: '1729.HK', key: '1729' },
     { ticker: 'EWY',     name: 'iShares MSCI S.Korea', finnhub: 'EWY',    key: 'ewy' },
     { ticker: 'GOOG',    name: 'Alphabet Inc.',  finnhub: 'GOOG',   key: 'goog' },
     { ticker: 'MSFT',    name: 'Microsoft Corp.',finnhub: 'MSFT',   key: 'msft' },
@@ -1034,10 +1045,10 @@ async function refreshAll() {
   triggeredAlerts.clear();
 
   await Promise.all([
-    loadIndex('SPX',  '^GSPC',  'spx-price',    'spx-sub',    'spx-dma-bar',    'spx-dma-label',    'card-spx',    'spx'),
-    loadIndex('DJIA', '^DJI',   'djia-price',   'djia-sub',   'djia-dma-bar',   'djia-dma-label',   'card-djia',   'djia'),
-    loadIndex('IXIC', '^IXIC',  'nasdaq-price', 'nasdaq-sub', 'nasdaq-dma-bar', 'nasdaq-dma-label', 'card-nasdaq', 'nasdaq'),
-    loadIndex('HSI',  '^HSI',   'hsi-price',    'hsi-sub',    'hsi-dma-bar',    'hsi-dma-label',    'card-hsi',    'hsi'),
+    loadIndex('SPX',   'SPY',     'spx-price',    'spx-sub',    'spx-dma-bar',    'spx-dma-label',    'card-spx',    'spx'),
+    loadIndex('DJIA',  'DIA',     'djia-price',   'djia-sub',   'djia-dma-bar',   'djia-dma-label',   'card-djia',   'djia'),
+    loadIndex('IXIC',  'QQQ',     'nasdaq-price', 'nasdaq-sub', 'nasdaq-dma-bar', 'nasdaq-dma-label', 'card-nasdaq', 'nasdaq'),
+    loadIndex('HSI',   '0388.HK', 'hsi-price',    'hsi-sub',    'hsi-dma-bar',    'hsi-dma-label',    'card-hsi',    'hsi'),
     loadVIX(),
     loadBrent(),
     loadHYSpread(),
